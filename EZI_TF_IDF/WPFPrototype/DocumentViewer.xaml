@@ -1,0 +1,30 @@
+﻿<Window x:Class="WPFPrototype.DocumentViewer"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WPFPrototype"
+        mc:Ignorable="d"
+        WindowStartupLocation="CenterScreen"
+        Title="DocumentViewer" Height="482.776" Width="669.968">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="35"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Label Content="Title:" HorizontalAlignment="Right" FontWeight="Bold"/>
+        <TextBlock Grid.Column="1" Name="v_TextBlock_Title" FontWeight="Bold" FontSize="15" Foreground="Red" VerticalAlignment="Center" TextWrapping="Wrap" HorizontalAlignment="Center" Text="EMPTY EMPTY"/>
+        <Label Content="Original Text:" Grid.Row="1" FontWeight="Bold" HorizontalAlignment="Right"/>
+        <TextBlock Grid.Column="1" Margin="10,0" Grid.Row="1" Name="v_TextBlock_OriginalText" VerticalAlignment="Top" HorizontalAlignment="Left" TextWrapping="Wrap" Text="EMPTY EMPTY"/>
+        <Label Content="Processed Text:" Grid.Row="2" FontWeight="Bold" HorizontalAlignment="Right"/>
+        <TextBlock Grid.Column="1" Margin="10,0" Grid.Row="2" Name="v_TextBlock_ProcessedText" VerticalAlignment="Top" HorizontalAlignment="Left" TextWrapping="Wrap" Text="EMPTY EMPTY"/>
+        <Label Content="Keywords:" Grid.Row="3" FontWeight="Bold" HorizontalAlignment="Right"/>
+        <TextBlock Grid.Column="1" Margin="10,0" Grid.Row="3" Name="v_TextBlock_Keywords" VerticalAlignment="Top" HorizontalAlignment="Left" TextWrapping="Wrap" Text="EMPTY EMPTY"/>
+    </Grid>
+</Window>

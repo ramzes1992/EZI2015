@@ -1,0 +1,51 @@
+﻿<Window x:Class="WPFPrototype.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WPFPrototype"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Menu>
+            <MenuItem Header="Program">
+                <MenuItem Name="v_MenuItem_Documents" Header="Documents" Click="v_MenuItem_Documents_Click"></MenuItem>
+                <MenuItem Name="v_MenuItem_Keywords" Header="Keywords" Click="v_MenuItem_Keywords_Click"></MenuItem>
+                <MenuItem Name="v_MenuItem_ApplyChanges" Header="Apply Changes" Click="v_MenuItem_ApplyChanges_Click"></MenuItem>
+                <Separator></Separator>
+                <MenuItem Name="v_MenuItem_Exit" Header="Exit" Click="v_MenuItem_Exit_Click"></MenuItem>
+            </MenuItem>
+        </Menu>
+
+        <StackPanel Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2" Orientation="Horizontal">
+            <TextBox Name="v_TextBox_SearchInput" Width="250" TextChanged="v_TextBox_SearchInput_TextChanged"></TextBox>
+            <Button  Name="v_Button_Search" Margin="5,0" Padding="5,0" IsEnabled="False" IsDefault="True" Click="v_Button_Search_Click">Search...</Button>
+        </StackPanel>
+        
+        <ListView Grid.Row="2" Name="v_ListView_ResultList">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <EventSetter Event="MouseDoubleClick" Handler="v_ListViewItem_MouseDoubleClick" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Width="350" Header="Title" DisplayMemberBinding="{Binding Title}"/>
+                    <GridViewColumn Width="120" Header="Similarity" >
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Similarity, StringFormat={}{0:0.0000}}" FontWeight="Bold" Foreground="Red"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+    </Grid>
+</Window>
