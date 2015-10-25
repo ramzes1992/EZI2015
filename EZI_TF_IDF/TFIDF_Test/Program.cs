@@ -1,10 +1,12 @@
-﻿using System;
+﻿using MathNet.Numerics.LinearAlgebra;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using MathNet.Numerics.Statistics;
 
 namespace TFIDF_Test
 {
@@ -27,7 +29,7 @@ namespace TFIDF_Test
             {
                 keywords = Regex.Split(sr.ReadToEnd(), "\r\n").ToList();
             }
-            
+
             foreach (var doc in documents)
             {
                 var docRep = new DocumentRep();
@@ -46,7 +48,7 @@ namespace TFIDF_Test
                 var tfMax = docRep.BagOfWords.Max(w => w.Value);
                 foreach (var word in docRep.BagOfWords)
                 {
-                    if(tfMax <= 0)
+                    if (tfMax <= 0)
                     {
                         docRep.TF[word.Key] = 0;
                     }
@@ -57,14 +59,14 @@ namespace TFIDF_Test
                 }
             }
 
-            foreach(var keyword in keywords)
+            foreach (var keyword in keywords)
             {
                 var count = (double)documentsReps.Count;
                 var contains = documentsReps.Count(d => d.BagOfWords.Any(w => w.Key.Equals(keyword) && w.Value > 0));
-                IDF[keyword] = contains > 0 ? Math.Log10( count / contains) : 0;
+                IDF[keyword] = contains > 0 ? Math.Log10(count / contains) : 0;
             }
 
-            foreach(var docRep in documentsReps)
+            foreach (var docRep in documentsReps)
             {
                 docRep.TFIDFValue = DistanceN(docRep.TF.Select(tf => IDF[tf.Key] * tf.Value));
             }
@@ -100,21 +102,22 @@ namespace TFIDF_Test
             {
                 var x = docRep.TFIDFValue * queryTFIDFValue;
                 double val = 0;
-                foreach(var keyword in keywords)
+                foreach (var keyword in keywords)
                 {
                     val += docRep.TF[keyword] * IDF[keyword] * queryTF[keyword] * IDF[keyword];
                 }
-                docRep.Sim = x > 0 ? val/x : 0;
+                docRep.Sim = x > 0 ? val / x : 0;
             }
 
             var order = documentsReps.OrderByDescending(d => d.Sim).Take(10);
 
             //print result
-            foreach(var doc in order)
+            foreach (var doc in order)
             {
                 Console.WriteLine("{0}\t{1}", doc.Title, doc.Sim);
             }
 
+            calcMatrix();
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -128,19 +131,464 @@ namespace TFIDF_Test
 
         static double DistanceN(IEnumerable<double> first)
         {
-            var sum = first.Select((x) => x*x).Sum();
+            var sum = first.Select((x) => x * x).Sum();
             return Math.Sqrt(sum);
         }
-    }
 
-    class DocumentRep
-    {
-        public string OriginalText { get; set; }
-        public string Title { get; set; }
-        public string PostProcessedText { get; set; }
-        public Dictionary<string, int> BagOfWords { get; set; }
-        public Dictionary<string, double> TF { get; set; }
-        public double TFIDFValue { get; set; }
-        public double Sim { get; set; }
+        private static void calcMatrix()
+        {
+            //lista wszystkich wyrazów
+            List<string> allWords = new List<string>();
+            foreach (var doc in documents)
+            {
+                var wordsInDoc = GetWords(doc);
+                foreach (var word in wordsInDoc)
+                {
+                    if (!allWords.Contains(word))
+                    {
+                        allWords.Add(word);
+                    }
+                }
+            }
+            double[,] docsWordsArray = new double[documents.Count, allWords.Count];
+            for (int i = 0; i < documents.Count; i++)
+            {
+                var wordsInDoc = GetWords(documents[i]);
+                for (int j = 0; j < allWords.Count; j++)
+                {
+                    var wordsCount = wordsInDoc.Count(w => w.Equals(allWords[j]));
+                    docsWordsArray[i, j] = wordsCount;
+                }
+            }
+            var docsWordsMatrix = Matrix<double>.Build.DenseOfArray(docsWordsArray);
+            var wordsWordsMatrix = docsWordsMatrix.Transpose().Multiply(docsWordsMatrix);
+            wordsWordsMatrix = wordsWordsMatrix.NormalizeRows(1.0);
+
+            var inputWords = Console.ReadLine();
+
+            List<CorrelatedWord> correlatedWords = new List<CorrelatedWord>();
+            bool _first = true;
+            foreach (var inputWord in GetWords(inputWords))
+            {
+                if (_first)
+                {
+                    correlatedWords = GetCorrelateedWords(inputWord, allWords, wordsWordsMatrix).ToList();
+                }
+                else
+                {
+                    correlatedWords = GetCorrelateedWords(inputWord, allWords, wordsWordsMatrix).Where(c => correlatedWords.Any(w => w.Word.Equals(c.Word))).ToList();
+                }
+
+                _first = false;
+            }
+            var stemedWords = GetWords(inputWords).Select(w => _ps.stemTerm(w));
+            var filteredWords = correlatedWords
+                .Where(w => !string.IsNullOrWhiteSpace(w.Word))
+                //.Where(w => !stemedWords.Contains(_ps.stemTerm(w.Word)))
+                .Where(w => !inputWords.Contains(w.Word))
+                .Where(w => w.Correlation >= 0.01)
+                .Where(w => !_stopWords.Contains(w.Word));
+            filteredWords.GroupBy(c => c.Word).Select(x => new CorrelatedWord() { Word = x.Key, Correlation = x.Sum(c => c.Correlation) });
+
+            var orderedResult = filteredWords.GroupBy(c => c.Word)
+                .Select(x => new CorrelatedWord() { Word = x.Key, Correlation = x.Sum(c => c.Correlation) })
+                .OrderByDescending(w => w.Correlation);
+
+            foreach (var cw in orderedResult)
+            {
+                Console.WriteLine("WORD: {0}\t{1}", cw.Word, cw.Correlation);
+            }
+
+            double[,] docsTermsArray = new double[documentsReps.Count, keywords.Count];
+
+            for (int i = 0; i < documentsReps.Count; i++)
+            {
+                for (int j = 0; j < keywords.Count; j++)
+                {
+                    docsTermsArray[i, j] = documentsReps[i].BagOfWords.ElementAt(j).Value > 0 ? 1 : 0;
+                }
+            }
+
+            Matrix<double> docTermsMatrix = Matrix<double>.Build.DenseOfArray(docsTermsArray);
+            var result = docTermsMatrix.Transpose().Multiply(docTermsMatrix);
+
+            for (int i = 0; i < 120; i++)
+            {
+                var max = result.Row(i).Max();
+                for (int j = 0; j < 120; j++)
+                {
+                    if (max > 0)
+                    {
+                        result[i, j] = result[i, j] / max;
+                    }
+                }
+            }
+        }
+        public static string[] GetWords(string document)
+        {
+            return Regex.Replace(document.ToLower(), @"[^\w\s]", "").Split(null).Where(w => !string.IsNullOrWhiteSpace(w)).ToArray();
+        }
+        private static List<CorrelatedWord> GetCorrelateedWords(string inputWord, List<string> allWords, Matrix<double> wordsWordsMatrix)
+        {
+            var stemedInputWord = _ps.stemTerm(inputWord);
+            var simillarWords = allWords.Where(w => _ps.stemTerm(w).Equals(stemedInputWord));
+            var simillarWordsIndexes = simillarWords.Select(w => allWords.IndexOf(w));
+            var correlatedWords = new List<CorrelatedWord>();
+            foreach (var correlatedWordIndex in simillarWordsIndexes)
+            {
+                for (int i = 0; i < wordsWordsMatrix.Row(correlatedWordIndex).Count; i++)
+                {
+                    correlatedWords.Add(new CorrelatedWord() { Word = allWords[i], Correlation = wordsWordsMatrix.Row(correlatedWordIndex)[i] });
+                }
+            }
+
+            return correlatedWords;
+        }
+
+        private static string[] _stopWords
+        {
+            get
+            {
+                return new string[]
+                {
+                    #region STOP WORDS
+                    "a",
+                    "about",
+                    "above",
+                    "across",
+                    "after",
+                    "afterwards",
+                    "again",
+                    "against",
+                    "all",
+                    "almost",
+                    "alone",
+                    "along",
+                    "already",
+                    "also",
+                    "although",
+                    "always",
+                    "am",
+                    "among",
+                    "amongst",
+                    "amount",
+                    "an",
+                    "and",
+                    "another",
+                    "any",
+                    "anyhow",
+                    "anyone",
+                    "anything",
+                    "anyway",
+                    "anywhere",
+                    "are",
+                    "around",
+                    "as",
+                    "at",
+                    "back",
+                    "be",
+                    "became",
+                    "because",
+                    "become",
+                    "becomes",
+                    "becoming",
+                    "been",
+                    "before",
+                    "beforehand",
+                    "behind",
+                    "being",
+                    "below",
+                    "beside",
+                    "besides",
+                    "between",
+                    "beyond",
+                    "bill",
+                    "both",
+                    "bottom",
+                    "but",
+                    "by",
+                    "call",
+                    "can",
+                    "cannot",
+                    "cant",
+                    "co",
+                    "computer",
+                    "con",
+                    "could",
+                    "couldnt",
+                    "cry",
+                    "de",
+                    "describe",
+                    "detail",
+                    "do",
+                    "done",
+                    "down",
+                    "due",
+                    "during",
+                    "each",
+                    "eg",
+                    "eight",
+                    "either",
+                    "eleven",
+                    "else",
+                    "elsewhere",
+                    "empty",
+                    "enough",
+                    "etc",
+                    "even",
+                    "ever",
+                    "every",
+                    "everyone",
+                    "everything",
+                    "everywhere",
+                    "except",
+                    "few",
+                    "fifteen",
+                    "fify",
+                    "fill",
+                    "find",
+                    "fire",
+                    "first",
+                    "five",
+                    "for",
+                    "former",
+                    "formerly",
+                    "forty",
+                    "found",
+                    "four",
+                    "from",
+                    "front",
+                    "full",
+                    "further",
+                    "get",
+                    "give",
+                    "go",
+                    "had",
+                    "has",
+                    "have",
+                    "he",
+                    "hence",
+                    "her",
+                    "here",
+                    "hereafter",
+                    "hereby",
+                    "herein",
+                    "hereupon",
+                    "hers",
+                    "herself",
+                    "him",
+                    "himself",
+                    "his",
+                    "how",
+                    "however",
+                    "hundred",
+                    "i",
+                    "ie",
+                    "if",
+                    "in",
+                    "inc",
+                    "indeed",
+                    "interest",
+                    "into",
+                    "is",
+                    "it",
+                    "its",
+                    "itself",
+                    "keep",
+                    "last",
+                    "latter",
+                    "latterly",
+                    "least",
+                    "less",
+                    "ltd",
+                    "made",
+                    "many",
+                    "may",
+                    "me",
+                    "meanwhile",
+                    "might",
+                    "mill",
+                    "mine",
+                    "more",
+                    "moreover",
+                    "most",
+                    "mostly",
+                    "move",
+                    "much",
+                    "must",
+                    "my",
+                    "myself",
+                    "name",
+                    "namely",
+                    "neither",
+                    "never",
+                    "nevertheless",
+                    "next",
+                    "nine",
+                    "no",
+                    "nobody",
+                    "none",
+                    "nor",
+                    "not",
+                    "nothing",
+                    "now",
+                    "nowhere",
+                    "of",
+                    "off",
+                    "often",
+                    "on",
+                    "once",
+                    "one",
+                    "only",
+                    "onto",
+                    "or",
+                    "other",
+                    "others",
+                    "otherwise",
+                    "our",
+                    "ours",
+                    "ourselves",
+                    "out",
+                    "over",
+                    "own",
+                    "part",
+                    "per",
+                    "perhaps",
+                    "please",
+                    "put",
+                    "rather",
+                    "re",
+                    "same",
+                    "see",
+                    "seem",
+                    "seemed",
+                    "seeming",
+                    "seems",
+                    "serious",
+                    "several",
+                    "she",
+                    "should",
+                    "show",
+                    "side",
+                    "since",
+                    "sincere",
+                    "six",
+                    "sixty",
+                    "so",
+                    "some",
+                    "somehow",
+                    "someone",
+                    "something",
+                    "sometime",
+                    "sometimes",
+                    "somewhere",
+                    "still",
+                    "such",
+                    "system",
+                    "take",
+                    "ten",
+                    "than",
+                    "that",
+                    "the",
+                    "their",
+                    "them",
+                    "themselves",
+                    "then",
+                    "thence",
+                    "there",
+                    "thereafter",
+                    "thereby",
+                    "therefore",
+                    "therein",
+                    "thereupon",
+                    "these",
+                    "they",
+                    "thick",
+                    "thin",
+                    "third",
+                    "this",
+                    "those",
+                    "though",
+                    "three",
+                    "through",
+                    "throughout",
+                    "thru",
+                    "thus",
+                    "to",
+                    "together",
+                    "too",
+                    "top",
+                    "toward",
+                    "towards",
+                    "twelve",
+                    "twenty",
+                    "two",
+                    "un",
+                    "under",
+                    "until",
+                    "up",
+                    "upon",
+                    "us",
+                    "very",
+                    "via",
+                    "was",
+                    "we",
+                    "well",
+                    "were",
+                    "what",
+                    "whatever",
+                    "when",
+                    "whence",
+                    "whenever",
+                    "where",
+                    "whereafter",
+                    "whereas",
+                    "whereby",
+                    "wherein",
+                    "whereupon",
+                    "wherever",
+                    "whether",
+                    "which",
+                    "while",
+                    "whither",
+                    "who",
+                    "whoever",
+                    "whole",
+                    "whom",
+                    "whose",
+                    "why",
+                    "will",
+                    "with",
+                    "within",
+                    "without",
+                    "would",
+                    "yet",
+                    "you",
+                    "your",
+                    "yours",
+                    "yourself",
+                    "yourselves"
+                    #endregion
+                };
+            }
+        }
+
+        class CorrelatedWord
+        {
+            public string Word { get; set; }
+            public double Correlation { get; set; }
+        }
+
+        class DocumentRep
+        {
+            public string OriginalText { get; set; }
+            public string Title { get; set; }
+            public string PostProcessedText { get; set; }
+            public Dictionary<string, int> BagOfWords { get; set; }
+            public Dictionary<string, double> TF { get; set; }
+            public List<string> Words { get; set; }
+            public double TFIDFValue { get; set; }
+            public double Sim { get; set; }
+        }
     }
 }

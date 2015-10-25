@@ -5,15 +5,19 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WPFPrototype"
         mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
+        Title="MainWindow" Height="433" Width="780">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="30"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Menu>
-            <MenuItem Header="Program">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="240"/>
+        </Grid.ColumnDefinitions>
+        <Menu Grid.ColumnSpan="2">
+            <MenuItem Header="Program" >
                 <MenuItem Name="v_MenuItem_Documents" Header="Documents" Click="v_MenuItem_Documents_Click"></MenuItem>
                 <MenuItem Name="v_MenuItem_Keywords" Header="Keywords" Click="v_MenuItem_Keywords_Click"></MenuItem>
                 <MenuItem Name="v_MenuItem_ApplyChanges" Header="Apply Changes" Click="v_MenuItem_ApplyChanges_Click"></MenuItem>
@@ -22,12 +26,12 @@
             </MenuItem>
         </Menu>
 
-        <StackPanel Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2" Orientation="Horizontal">
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2" Orientation="Horizontal">
             <TextBox Name="v_TextBox_SearchInput" Width="250" TextChanged="v_TextBox_SearchInput_TextChanged"></TextBox>
             <Button  Name="v_Button_Search" Margin="5,0" Padding="5,0" IsEnabled="False" IsDefault="True" Click="v_Button_Search_Click">Search...</Button>
         </StackPanel>
-        
-        <ListView Grid.Row="2" Name="v_ListView_ResultList">
+
+        <ListView Grid.Row="2" Name="v_ListView_ResultList" Grid.Column="0">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <EventSetter Event="MouseDoubleClick" Handler="v_ListViewItem_MouseDoubleClick" />
@@ -35,7 +39,7 @@
             </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Width="350" Header="Title" DisplayMemberBinding="{Binding Title}"/>
+                    <GridViewColumn Width="400" Header="Title" DisplayMemberBinding="{Binding Title}"/>
                     <GridViewColumn Width="120" Header="Similarity" >
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
@@ -46,6 +50,19 @@
                 </GridView>
             </ListView.View>
         </ListView>
-
+        <ListBox Name="v_ListBox_Suggestions" Grid.Column="1" Grid.Row="2">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding Word}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Correlation, StringFormat={}{0:0.0000}}" FontWeight="Bold" Foreground="Red"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
     </Grid>
 </Window>
