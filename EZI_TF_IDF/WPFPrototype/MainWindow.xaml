@@ -64,5 +64,10 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <RadioButton IsChecked="True" Checked="RadioButton_Checked" GroupName="SuggestionMethod" Content="Correlation" Margin="5,0"/>
+            <RadioButton Checked="RadioButton_Checked" GroupName="SuggestionMethod" Content="NextWord" Margin="5,0"/>
+            <RadioButton Checked="RadioButton_Checked" GroupName="SuggestionMethod" Content="None" Margin="5,0"/>
+        </StackPanel>
     </Grid>
 </Window>

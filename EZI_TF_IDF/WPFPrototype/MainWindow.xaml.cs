@@ -35,6 +35,10 @@ namespace WPFPrototype
         private List<string> allWords = new List<string>();
         private Matrix<double> wordsCorrelationMatrix;
         private double _minCorrelationValue = 0.01;
+
+        private SuggestionsMethod _currentSuggestionsMethod = SuggestionsMethod.Correlation;
+        private Dictionary<string, Dictionary<string, int>> _nextWordCounter = new Dictionary<string, Dictionary<string, int>>();
+
         public MainWindow()
         {
             InitializeComponent();
@@ -51,6 +55,8 @@ namespace WPFPrototype
 
         private void RecalculateDocuments()
         {
+            //Calculating TF/IDF
+            #region TF IDF
             foreach (var doc in _rawDocuments)
             {
                 var docRep = new Document();
@@ -94,8 +100,10 @@ namespace WPFPrototype
             {
                 docRep.TFIDFVectorValue = DistanceN(docRep.TF.Select(tf => IDF[tf.Key] * tf.Value));
             }
+            #endregion
 
             //words Correlation
+            #region Correlation
             foreach (var doc in _rawDocuments)
             {
                 var wordsInDoc = GetWords(doc);
@@ -119,6 +127,42 @@ namespace WPFPrototype
             }
             var docsWordsMatrix = Matrix<double>.Build.DenseOfArray(docsWordsArray);
             wordsCorrelationMatrix = docsWordsMatrix.Transpose().Multiply(docsWordsMatrix).NormalizeRows(1.0);
+            #endregion
+
+            //NextWordCounting
+            #region Next Word Counting
+
+            for (int i = 0; i < _rawDocuments.Count; i++)
+            {
+                var words = GetWords(_rawDocuments[i]);
+                for (int j = 0; j < words.Length; j++)
+                {
+                    if (!_nextWordCounter.ContainsKey(words[j]))
+                    {// jeszcze nie było takiego słowa
+                        _nextWordCounter[words[j]] = new Dictionary<string, int>();
+                        if (j + 1 < words.Length)
+                        {//istnieje następne słowo
+                            _nextWordCounter[words[j]][words[j + 1]] = 1;
+                        }
+                    }
+                    else
+                    {// było już i incrementujemy wartość jego następnego słowa
+                        if (j + 1 < words.Length)
+                        {// istnieje następne słowo
+                            if (!_nextWordCounter[words[j]].ContainsKey(words[j + 1]))
+                            {//następnego słowa jeszcze nie ma w słowniku
+                                _nextWordCounter[words[j]][words[j + 1]] = 1;
+                            }
+                            else
+                            {//następne słowo już jest w słowniku - incrementujemy wartość
+                                _nextWordCounter[words[j]][words[j + 1]]++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            #endregion
         }
 
         private double DistanceN(IEnumerable<double> first)
@@ -181,6 +225,7 @@ namespace WPFPrototype
 
             string originalQuery = v_TextBox_SearchInput.Text;
 
+            #region TF/IDF/SIMILARITY
             string processedQuery = string.Concat(Regex.Replace(originalQuery.ToLower(), @"[^\w\s]", "").Split(null).Select(s => _ps.stemTerm(s) + " "));
             //Creating bag of words
             var queryBagOfWords = new Dictionary<string, int>();
@@ -201,6 +246,8 @@ namespace WPFPrototype
             //Calculationg TF-IDF
             var queryTFIDFVectorValue = DistanceN(queryTF.Select(tf => IDF[tf.Key] * tf.Value));
 
+            v_ListView_ResultList.ItemsSource = _documents.OrderByDescending(d => d.Similarity).ToList();
+
             //CALCULATING SIMILARITY
             foreach (var docRep in _documents)
             {
@@ -212,10 +259,10 @@ namespace WPFPrototype
                 }
                 docRep.Similarity = x > 0 ? val / x : 0;
             }
-
-            v_ListView_ResultList.ItemsSource = _documents.OrderByDescending(d => d.Similarity).ToList();
+            #endregion
 
             //Checking Correlation
+            #region Correlation
             List<CorrelatedWord> correlatedWords = new List<CorrelatedWord>();
             bool _first = true;
             foreach (var inputWord in GetWords(originalQuery))
@@ -247,8 +294,39 @@ namespace WPFPrototype
                 })
                 .OrderByDescending(w => w.Correlation)
                 .Take(5);
+            #endregion
 
-            v_ListBox_Suggestions.ItemsSource = orderedResult;
+            //next word
+            #region Next Word
+
+            var lastQueryWord = GetWords(originalQuery).LastOrDefault();
+            List<CorrelatedWord> nextWordsOrdered = new List<CorrelatedWord>();
+            if (!string.IsNullOrWhiteSpace(lastQueryWord))
+            {
+                if (_nextWordCounter.ContainsKey(lastQueryWord))
+                {
+                    var sum = _nextWordCounter[lastQueryWord].Sum(c => c.Value);
+                    nextWordsOrdered = _nextWordCounter[lastQueryWord].OrderByDescending(c => c.Value)
+                        .Select(w => new CorrelatedWord() { Word = w.Key, Correlation = sum > 0 ? (double)w.Value/sum : 0}).ToList();
+                }
+            }
+
+            #endregion
+
+
+            switch (_currentSuggestionsMethod)
+            {
+                case SuggestionsMethod.Correlation:
+                    v_ListBox_Suggestions.ItemsSource = orderedResult;
+                    break;
+                case SuggestionsMethod.NextWord:
+                    v_ListBox_Suggestions.ItemsSource = nextWordsOrdered;
+                    break;
+                default:
+                    break;
+            }
+
+
         }
 
         private void v_ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -609,11 +687,31 @@ namespace WPFPrototype
 
             return correlatedWords;
         }
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (v_ListBox_Suggestions != null
+                && sender != null
+                && (sender as RadioButton).Content != null)
+            {
+                v_ListBox_Suggestions.ItemsSource = new List<CorrelatedWord>();
+                string content = (sender as RadioButton).Content.ToString();
+                _currentSuggestionsMethod = (SuggestionsMethod)Enum.Parse(typeof(SuggestionsMethod), content);
+            }
+
+        }
     }
 
     class CorrelatedWord
     {
         public string Word { get; set; }
         public double Correlation { get; set; }
+    }
+
+    enum SuggestionsMethod
+    {
+        Correlation,
+        NextWord,
+        None
     }
 }
