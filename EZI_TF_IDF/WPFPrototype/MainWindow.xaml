@@ -29,6 +29,10 @@
         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2" Orientation="Horizontal">
             <TextBox Name="v_TextBox_SearchInput" Width="250" TextChanged="v_TextBox_SearchInput_TextChanged"></TextBox>
             <Button  Name="v_Button_Search" Margin="5,0" Padding="5,0" IsEnabled="False" IsDefault="True" Click="v_Button_Search_Click">Search...</Button>
+            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <RadioButton IsChecked="True" Checked="IndexingMethod_RadioButton_Checked" GroupName="IndexingMethod" Content="TFIDF" Margin="5,0"/>
+                <RadioButton Checked="IndexingMethod_RadioButton_Checked" GroupName="IndexingMethod" Content="LSI" Margin="5,0"/>
+            </StackPanel>
         </StackPanel>
 
         <ListView Grid.Row="2" Name="v_ListView_ResultList" Grid.Column="0">
@@ -50,6 +54,25 @@
                 </GridView>
             </ListView.View>
         </ListView>
+        <ListView Grid.Row="2" Name="v_ListView_LSIResultList" Grid.Column="0" Visibility="Hidden">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <EventSetter Event="MouseDoubleClick" Handler="v_ListViewItem_MouseDoubleClick" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Width="400" Header="Title" DisplayMemberBinding="{Binding Title}"/>
+                    <GridViewColumn Width="120" Header="Similarity" >
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding LsiSimilarity, StringFormat={}{0:0.0000}}" FontWeight="Bold" Foreground="Red"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
         <ListBox Name="v_ListBox_Suggestions" Grid.Column="1" Grid.Row="2">
             <ListBox.ItemTemplate>
                 <DataTemplate>
@@ -65,9 +88,9 @@
             </ListBox.ItemTemplate>
         </ListBox>
         <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <RadioButton IsChecked="True" Checked="RadioButton_Checked" GroupName="SuggestionMethod" Content="Correlation" Margin="5,0"/>
-            <RadioButton Checked="RadioButton_Checked" GroupName="SuggestionMethod" Content="NextWord" Margin="5,0"/>
-            <RadioButton Checked="RadioButton_Checked" GroupName="SuggestionMethod" Content="None" Margin="5,0"/>
+            <RadioButton IsChecked="True" Checked="SuggestionMethod_RadioButton_Checked" GroupName="SuggestionMethod" Content="Correlation" Margin="5,0"/>
+            <RadioButton Checked="SuggestionMethod_RadioButton_Checked" GroupName="SuggestionMethod" Content="NextWord" Margin="5,0"/>
+            <RadioButton Checked="SuggestionMethod_RadioButton_Checked" GroupName="SuggestionMethod" Content="None" Margin="5,0"/>
         </StackPanel>
     </Grid>
 </Window>

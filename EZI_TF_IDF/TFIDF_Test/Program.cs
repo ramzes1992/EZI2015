@@ -71,6 +71,41 @@ namespace TFIDF_Test
                 docRep.TFIDFValue = DistanceN(docRep.TF.Select(tf => IDF[tf.Key] * tf.Value));
             }
 
+            //LSI
+            //double[,] termsDocsArray = new double[keywords.Count, documentsReps.Count];
+            //for (int i = 0; i < keywords.Count; i++)
+            //{
+            //    for (int j = 0; j < documentsReps.Count; j++)
+            //    {
+            //        termsDocsArray[i, j] = documentsReps[j].BagOfWords[keywords[i]];
+            //    }
+            //}
+            double[,] termsDocsArray = new double[6, 5]
+            {
+                { 1, 0, 1, 0, 0},
+                { 0, 1, 0, 0, 0},
+                { 1, 1, 0, 0, 0},
+                { 1, 0, 0, 1, 1},
+                { 0, 0, 0, 1, 0},
+                { 0, 0, 0, 1, 0},
+            };
+
+            Matrix<double> termsDocsMatrix = Matrix<double>.Build.DenseOfArray(termsDocsArray);
+
+            var svd = termsDocsMatrix.Svd();
+            var K = svd.U;
+            var S = Matrix<double>.Build.DenseOfDiagonalArray(svd.S.ToArray());
+            var DT = svd.VT.SubMatrix(0, S.RowCount, 0, svd.VT.ColumnCount);
+            var D = DT.Transpose();
+            int reductionCount = 2;
+
+            var S_s = S.SubMatrix(0, S.RowCount - reductionCount, 0, S.ColumnCount - reductionCount);
+            var K_s = K.SubMatrix(0, K.RowCount, 0, K.ColumnCount - Math.Abs(K.ColumnCount - S_s.ColumnCount));
+            var D_sT = DT.SubMatrix(0, DT.RowCount - reductionCount, 0, DT.ColumnCount);
+            var D_s = D_sT.Transpose();
+
+            var result = K_s * S_s * D_sT;
+
             //query
             string originalQuery = Console.ReadLine();
 
@@ -97,6 +132,41 @@ namespace TFIDF_Test
             var queryTFIDFValue = DistanceN(queryTF.Select(tf => IDF[tf.Key] * tf.Value));
             //end query processing
 
+            //LSI
+
+            //Vector<double> qT = Vector<double>.Build.DenseOfArray(queryBagOfWords.Select(w => (double)w.Value).ToArray());//new double[] { 0, 1, 0, 0, 1 });
+            Vector<double> qT = Vector<double>.Build.DenseOfArray(new double[] { 0, 1, 0, 0, 1 });
+
+            var transformedQuery = qT * K_s * S_s.Inverse();
+
+            var queryValue = DistanceN(transformedQuery);
+
+
+            var docValues = new double[D_s.RowCount];
+            for (int i = 0; i < docValues.Length; i++)
+            {
+                docValues[i] = DistanceN(D_s.Row(i));
+            }
+
+            var sumOfProducts = new double[D_s.RowCount];
+            for (int i = 0; i < D.RowCount; i++)
+            {
+                sumOfProducts[i] = 0;
+                for (int j = 0; j < D_s.Row(i).Count; j++)
+                {
+                    sumOfProducts[i] += D_s[i, j] * transformedQuery[j];
+                }
+            }
+
+            var sim = new double[D_s.RowCount];
+            for (int i = 0; i < sim.Length; i++)
+            {
+                sim[i] = queryValue > 0 ? sumOfProducts[i] / queryValue : 0;
+                documentsReps[i].LsiSIM = sim[i];
+            }
+            //LSI end
+
+
             //Similarity
             foreach (var docRep in documentsReps)
             {
@@ -117,7 +187,18 @@ namespace TFIDF_Test
                 Console.WriteLine("{0}\t{1}", doc.Title, doc.Sim);
             }
 
+            Console.WriteLine("##############");
+            var orderLSI = documentsReps.OrderByDescending(d => d.LsiSIM).Take(10);
+
+            //print result
+            foreach (var doc in orderLSI)
+            {
+                Console.WriteLine("{0}\t{1}", doc.Title, doc.LsiSIM);
+            }
+
             calcMatrix();
+            calcLSI();
+
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -224,6 +305,12 @@ namespace TFIDF_Test
                 }
             }
         }
+
+        private static void calcLSI()
+        {
+
+        }
+
         public static string[] GetWords(string document)
         {
             return Regex.Replace(document.ToLower(), @"[^\w\s]", "").Split(null).Where(w => !string.IsNullOrWhiteSpace(w)).ToArray();
@@ -589,6 +676,7 @@ namespace TFIDF_Test
             public List<string> Words { get; set; }
             public double TFIDFValue { get; set; }
             public double Sim { get; set; }
+            public double LsiSIM { get; set; }
         }
     }
 }

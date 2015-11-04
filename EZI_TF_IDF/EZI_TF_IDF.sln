@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TFIDF_Test", "TFIDF_Test\TF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPFPrototype", "WPFPrototype\WPFPrototype.csproj", "{79C10136-1CDF-40CF-B3E5-DC1341A5031F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LSI", "LSI\LSI.csproj", "{1FA76FA3-0E58-4C5B-9102-36E6CE37871A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{79C10136-1CDF-40CF-B3E5-DC1341A5031F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{79C10136-1CDF-40CF-B3E5-DC1341A5031F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{79C10136-1CDF-40CF-B3E5-DC1341A5031F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FA76FA3-0E58-4C5B-9102-36E6CE37871A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FA76FA3-0E58-4C5B-9102-36E6CE37871A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FA76FA3-0E58-4C5B-9102-36E6CE37871A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FA76FA3-0E58-4C5B-9102-36E6CE37871A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

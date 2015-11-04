@@ -15,5 +15,6 @@ namespace WPFPrototype
         public Dictionary<string, double> TF { get; set; }
         public double TFIDFVectorValue { get; set; }
         public double Similarity { get; set; }
+        public double LsiSimilarity { get; set; }
     }
 }

@@ -39,6 +39,13 @@ namespace WPFPrototype
         private SuggestionsMethod _currentSuggestionsMethod = SuggestionsMethod.Correlation;
         private Dictionary<string, Dictionary<string, int>> _nextWordCounter = new Dictionary<string, Dictionary<string, int>>();
 
+        private Matrix<double> LsiMatrix;
+        private Matrix<double> K_s;
+        private Matrix<double> S_s;
+        private Matrix<double> D_sT;
+        private Matrix<double> D_s;
+        private int reductionCount = 5;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -162,6 +169,42 @@ namespace WPFPrototype
                 }
             }
 
+            #endregion
+
+            //LSI Calculating
+            #region LSI
+            double[,] termsDocsArray = new double[_rawKeywords.Count, _documents.Count];
+            //bag of words
+            for (int i = 0; i < _rawKeywords.Count; i++)
+            {
+                for (int j = 0; j < _documents.Count; j++)
+                {
+                    termsDocsArray[i, j] = _documents[j].BagOfWords[_rawKeywords[i]];
+                }
+            }
+            // TF/IDF
+            //for (int i = 0; i < _rawKeywords.Count; i++)
+            //{
+            //    for (int j = 0; j < _documents.Count; j++)
+            //    {
+            //        termsDocsArray[i, j] = _documents[j].TF[_rawKeywords[i]] * IDF[_rawKeywords[i]];
+            //    }
+            //}
+
+            Matrix<double> termsDocsMatrix = Matrix<double>.Build.DenseOfArray(termsDocsArray);
+
+            var svd = termsDocsMatrix.Svd();
+            var K = svd.U;
+            var S = Matrix<double>.Build.DenseOfDiagonalArray(svd.S.ToArray());
+            var DT = svd.VT.SubMatrix(0, S.RowCount, 0, svd.VT.ColumnCount);
+            var D = DT.Transpose();
+
+            S_s = S.SubMatrix(0, S.RowCount - reductionCount, 0, S.ColumnCount - reductionCount);
+            K_s = K.SubMatrix(0, K.RowCount, 0, K.ColumnCount - Math.Abs(K.ColumnCount - S_s.ColumnCount));
+            D_sT = DT.SubMatrix(0, DT.RowCount - reductionCount, 0, DT.ColumnCount);
+            D_s = D_sT.Transpose();
+
+            LsiMatrix = K_s * S_s * D_sT;
             #endregion
         }
 
@@ -311,6 +354,44 @@ namespace WPFPrototype
                 }
             }
 
+            #endregion
+
+            //LSI
+            #region LSI
+            //bag of words
+            Vector<double> qT = Vector<double>.Build.DenseOfArray(queryBagOfWords.Select(w => (double)w.Value).ToArray());//new double[] { 0, 1, 0, 0, 1 });
+            // TF/IDF
+            //Vector<double> qT = Vector<double>.Build.DenseOfArray(queryTF.Select(w => w.Value * IDF[w.Key]).ToArray());//new double[] { 0, 1, 0, 0, 1 });
+
+            var transformedQuery = qT * K_s * S_s.Inverse();
+
+            var queryValue = DistanceN(transformedQuery);
+
+
+            var docValues = new double[D_s.RowCount];
+            for (int i = 0; i < docValues.Length; i++)
+            {
+                docValues[i] = DistanceN(D_s.Row(i));
+            }
+
+            var sumOfProducts = new double[D_s.RowCount];
+            for (int i = 0; i < sumOfProducts.Length; i++)
+            {
+                sumOfProducts[i] = 0;
+                for (int j = 0; j < D_s.Row(i).Count; j++)
+                {
+                    sumOfProducts[i] += D_s[i, j] * transformedQuery[j];
+                }
+            }
+
+            var sim = new double[D_s.RowCount];
+            for (int i = 0; i < sim.Length; i++)
+            {
+                sim[i] = queryValue > 0 ? sumOfProducts[i] / queryValue : 0;
+                _documents[i].LsiSimilarity = sim[i];
+            }
+
+            v_ListView_LSIResultList.ItemsSource = _documents.OrderByDescending(d => d.LsiSimilarity).ToList();
             #endregion
 
 
@@ -688,7 +769,7 @@ namespace WPFPrototype
             return correlatedWords;
         }
 
-        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        private void SuggestionMethod_RadioButton_Checked(object sender, RoutedEventArgs e)
         {
             if (v_ListBox_Suggestions != null
                 && sender != null
@@ -698,7 +779,30 @@ namespace WPFPrototype
                 string content = (sender as RadioButton).Content.ToString();
                 _currentSuggestionsMethod = (SuggestionsMethod)Enum.Parse(typeof(SuggestionsMethod), content);
             }
+        }
 
+        private void IndexingMethod_RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if ( sender != null
+                && (sender as RadioButton).Content != null)
+            {
+                string content = (sender as RadioButton).Content.ToString();
+                switch((IndexingMethod)Enum.Parse(typeof(IndexingMethod), content))
+                {
+                    case IndexingMethod.TFIDF:
+                        v_ListView_ResultList.Visibility = Visibility.Visible;
+                        v_ListView_LSIResultList.Visibility = Visibility.Hidden;
+                        break;
+                    case IndexingMethod.LSI:
+                        v_ListView_ResultList.Visibility = Visibility.Hidden;
+                        v_ListView_LSIResultList.Visibility = Visibility.Visible;
+                        break;
+                    default:
+                        v_ListView_ResultList.Visibility = Visibility.Visible;
+                        v_ListView_LSIResultList.Visibility = Visibility.Hidden;
+                        break;
+                }
+            }
         }
     }
 
@@ -713,5 +817,11 @@ namespace WPFPrototype
         Correlation,
         NextWord,
         None
+    }
+
+    enum IndexingMethod
+    {
+        TFIDF,
+        LSI,
     }
 }
